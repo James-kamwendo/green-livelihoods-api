@@ -30,6 +30,7 @@ class RegisterRequest extends FormRequest
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'age' => ['nullable', 'integer', 'min:18'],
             'location' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'string', 'in:artisan,buyer,marketer'],
         ];
     }
 }

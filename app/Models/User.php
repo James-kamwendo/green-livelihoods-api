@@ -11,6 +11,20 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (User $user) {
+            // Assign 'unverified' role if no role is provided
+            if (!$user->hasAnyRole(['admin', 'artisan', 'buyer', 'marketer'])) {
+                $user->assignRole('unverified');
+            }
+        });
+    }
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
@@ -38,6 +52,8 @@ class User extends Authenticatable
         'provider_refresh_token',
         'email_verified_at',
         'phone_verified_at',
+        'verification_token',
+        'verification_token_expires_at',
     ];
 
     /**
@@ -55,6 +71,8 @@ class User extends Authenticatable
         'remember_token',
         'provider_token',
         'provider_refresh_token',
+        'verification_token',
+        'verification_token_expires_at',
     ];
 
     /**
@@ -72,6 +90,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
+            'verification_token_expires_at' => 'datetime',
             'password' => 'hashed',
             'age' => 'integer',
         ];

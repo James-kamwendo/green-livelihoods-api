@@ -47,6 +47,9 @@ class RolePermissionSeeder extends Seeder
 
         // Create roles and assign created permissions
         
+        // Unverified role - for new users who haven't selected a role yet
+        Role::firstOrCreate(['name' => 'unverified']);
+        
         // Admin - gets all permissions
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $adminRole->givePermissionTo(Permission::all());

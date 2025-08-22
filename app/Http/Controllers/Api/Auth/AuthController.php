@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -28,18 +29,34 @@ class AuthController extends Controller
             'gender' => $validated['gender'] ?? null,
             'age' => $validated['age'] ?? null,
             'location' => $validated['location'] ?? null,
-            'email_verified_at' => now(), // In production, you should send verification email
+            'email_verified_at' => null, // Will be set after email verification
         ]);
 
-        // Assign default role (buyer)
-        $user->assignRole('buyer');
+        // Assign the specified role or default to 'unverified'
+        if (isset($validated['role'])) {
+            $user->syncRoles([$validated['role']]);
+        }
+        // Note: The 'unverified' role is assigned automatically via the User model's boot method
 
+        // Generate verification token
+        $verificationToken = Str::random(60);
+        $user->verification_token = hash('sha256', $verificationToken);
+        $user->save();
+
+        // In production, send verification email here
+        // Mail::to($user->email)->send(new VerifyEmail($user, $verificationToken));
+
+        // Generate auth token
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => array_merge($user->toArray(), [
+                'roles' => $user->getRoleNames(),
+            ]),
             'access_token' => $token,
             'token_type' => 'Bearer',
+            'requires_email_verification' => true,
+            'verification_token' => $verificationToken, // Only for development
         ], 201);
     }
 
@@ -50,26 +67,30 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validated();
-        
-        $field = filter_var($credentials['email'] ?? $credentials['phone_number'], FILTER_VALIDATE_EMAIL) 
-            ? 'email' 
-            : 'phone_number';
-            
-        if (!Auth::attempt([
-            $field => $credentials[$field],
-            'password' => $credentials['password'],
-        ], $request->boolean('remember'))) {
+        $validated = $request->validated();
+
+        // Check if user exists and password is correct
+        if (!Auth::attempt($validated)) {
             throw ValidationException::withMessages([
-                'email' => [__('auth.failed')],
+                'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        $user = Auth::user();
+        $user = $request->user();
+        
+        // Check if email is verified
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Your email address is not verified.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => array_merge($user->toArray(), [
+                'roles' => $user->getRoleNames(),
+            ]),
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);
@@ -92,8 +113,11 @@ class AuthController extends Controller
      */
     public function me(): JsonResponse
     {
+        $user = Auth::user();
         return response()->json([
-            'user' => Auth::user(),
+            'user' => array_merge($user->toArray(), [
+                'roles' => $user->getRoleNames(),
+            ]),
         ]);
     }
 
