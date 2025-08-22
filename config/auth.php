@@ -20,6 +20,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OTP Configuration
+    |--------------------------------------------------------------------------
+    |
+    | This section defines the configuration for One-Time Passwords (OTP)
+    | used for phone verification.
+    |
+    */
+
+    'otp' => [
+        'expires' => env('OTP_EXPIRES_IN_MINUTES', 10), // OTP expiration time in minutes
+        'length' => env('OTP_LENGTH', 6), // Length of the OTP code
+        'resend_after' => env('OTP_RESEND_AFTER_SECONDS', 60), // Time before OTP can be resent
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Guards
     |--------------------------------------------------------------------------
     |

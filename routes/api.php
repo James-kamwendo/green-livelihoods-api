@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\VerificationController;
+use App\Http\Controllers\Api\Auth\PhoneVerificationController;
+use App\Http\Controllers\Api\Auth\RegisterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,23 +21,53 @@ use Illuminate\Support\Facades\Route;
 // Auth Routes
 Route::prefix('auth')->group(function () {
     // Public auth routes
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [RegisterController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     
     // Email verification routes
     Route::prefix('email')->group(function () {
+        Route::get('/verify/{id}/{hash}', [VerificationController::class, 'verify'])
+            ->name('verification.verify');
         Route::post('/verify', [VerificationController::class, 'verify']);
-        Route::post('/resend', [VerificationController::class, 'resend']);
+        Route::post('/resend', [VerificationController::class, 'resend'])
+            ->middleware(['throttle:6,1']);
+    });
+
+    // Phone verification routes
+    Route::prefix('phone')->group(function () {
+        Route::post('/send-otp', [PhoneVerificationController::class, 'sendOtp']);
+        Route::post('/verify-otp', [PhoneVerificationController::class, 'verifyOtp']);
+        Route::post('/resend-otp', [PhoneVerificationController::class, 'resendOtp']);
     });
     
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
+        
+        // Role management
+        Route::post('/update-role', function (Request $request) {
+            $request->validate([
+                'role' => ['required', 'string', 'in:artisan,buyer,marketer'],
+            ]);
+
+            $user = $request->user();
+            
+            if ($user->updateRole($request->role)) {
+                return response()->json([
+                    'message' => 'Role updated successfully',
+                    'user' => $user->load('roles')
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Failed to update role',
+            ], 500);
+        });
     });
 });
 
 // Example protected route
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user()->load('roles');
 });

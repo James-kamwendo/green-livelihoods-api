@@ -15,23 +15,41 @@ class VerificationController extends Controller
     /**
      * Verify the user's email address.
      */
-    public function verify(Request $request): JsonResponse
+    public function verify(Request $request, $id = null, $hash = null): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'token' => 'required|string',
-        ]);
+        if ($request->isMethod('get') && $id && $hash) {
+            // Handle GET request with signed URL
+            $user = User::findOrFail($id);
+            
+            if (!hash_equals((string) $id, (string) $user->getKey())) {
+                return response()->json(['message' => 'Invalid verification link.'], 400);
+            }
 
-        $user = User::where('email', $request->email)->first();
+            if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+                return response()->json(['message' => 'Invalid verification link.'], 400);
+            }
 
-        if (!$user) {
-            return response()->json([
-                'message' => 'User not found.',
-            ], 404);
+            $token = $user->verification_token;
+        } else {
+            // Handle POST request with token
+            $request->validate([
+                'email' => 'required|email|exists:users,email',
+                'token' => 'required|string',
+            ]);
+
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found.',
+                ], 404);
+            }
+
+            $token = $request->token;
         }
 
         // Check if the token is valid and not expired
-        if (!Hash::check($request->token, $user->verification_token) || 
+        if (!Hash::check($token, $user->verification_token) || 
             $user->verification_token_expires_at->isPast()) {
             return response()->json([
                 'message' => 'Invalid or expired verification token.',
@@ -43,6 +61,9 @@ class VerificationController extends Controller
         $user->verification_token = null;
         $user->verification_token_expires_at = null;
         $user->save();
+
+        // Note: User remains 'unverified' role until they choose their role
+        // The role selection will be handled by a separate endpoint
 
         // Generate a new token for the user
         $token = $user->createToken('auth_token')->plainTextToken;

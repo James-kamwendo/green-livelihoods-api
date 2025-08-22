@@ -24,9 +24,26 @@ class RegisterRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'phone_number' => ['required', 'string', 'unique:users'],
+            'email' => [
+                'required_without:phone_number',
+                'nullable',
+                'string',
+                'email',
+                'max:255',
+                'unique:users,email',
+            ],
+            'password' => [
+                'required_with:email',
+                'nullable',
+                'confirmed',
+                Rules\Password::defaults(),
+            ],
+            'phone_number' => [
+                'required_without:email',
+                'nullable',
+                'string',
+                'unique:users,phone_number',
+            ],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'age' => ['nullable', 'integer', 'min:18'],
             'location' => ['nullable', 'string', 'max:255'],

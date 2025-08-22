@@ -7,11 +7,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Notifications\CustomVerifyEmail;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+    /**
+     * Send the email verification notification.
+     *
+     * @return void
+     */
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new CustomVerifyEmail);
+    }
 
     /**
      * The "booted" method of the model.
@@ -93,6 +104,57 @@ class User extends Authenticatable
             'verification_token_expires_at' => 'datetime',
             'password' => 'hashed',
             'age' => 'integer',
+        ];
+    }
+
+    /**
+     * Mark the user's phone as verified.
+     */
+    public function markPhoneAsVerified(): bool
+    {
+        return $this->forceFill([
+            'phone_verified_at' => $this->freshTimestamp(),
+            'verification_token' => null,
+            'verification_token_expires_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Check if the user has verified their phone.
+     */
+    public function hasVerifiedPhone(): bool
+    {
+        return ! is_null($this->phone_verified_at);
+    }
+
+    /**
+     * Update the user's role.
+     */
+    public function updateRole(string $role): bool
+    {
+        try {
+            // Remove all existing roles except 'unverified'
+            $this->roles()->where('name', '!=', 'unverified')->delete();
+            
+            // Assign the new role
+            $this->assignRole($role);
+            
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("Failed to update user role: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get the verification status.
+     */
+    public function getVerificationStatusAttribute(): array
+    {
+        return [
+            'email_verified' => ! is_null($this->email_verified_at),
+            'phone_verified' => ! is_null($this->phone_verified_at),
+            'verification_complete' => ! is_null($this->email_verified_at) || ! is_null($this->phone_verified_at),
         ];
     }
 
