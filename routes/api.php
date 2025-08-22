@@ -46,24 +46,7 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         
         // Role management
-        Route::post('/update-role', function (Request $request) {
-            $request->validate([
-                'role' => ['required', 'string', 'in:artisan,buyer,marketer'],
-            ]);
-
-            $user = $request->user();
-            
-            if ($user->updateRole($request->role)) {
-                return response()->json([
-                    'message' => 'Role updated successfully',
-                    'user' => $user->load('roles')
-                ]);
-            }
-
-            return response()->json([
-                'message' => 'Failed to update role',
-            ], 500);
-        });
+        Route::post('/update-role', [AuthController::class, 'updateRole']);
     });
 });
 

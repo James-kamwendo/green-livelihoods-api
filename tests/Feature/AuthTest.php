@@ -415,4 +415,55 @@ class AuthTest extends TestCase
             'tokenable_id' => $user->id,
         ]);
     }
+
+    #[Test]
+    public function user_can_update_their_role()
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('unverified');
+        
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/auth/update-role', [
+            'role' => 'buyer'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Role updated successfully.',
+            ]);
+
+        $user->refresh();
+        $this->assertTrue($user->hasRole('buyer'));
+        $this->assertFalse($user->hasRole('unverified'));
+    }
+
+    #[Test]
+    public function user_cannot_update_role_twice()
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('buyer');
+        
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/auth/update-role', [
+            'role' => 'seller'
+        ]);
+
+        $response->assertStatus(400)
+            ->assertJson([
+                'message' => 'You have already selected a role.',
+            ]);
+
+        $this->assertTrue($user->hasRole('buyer'));
+        $this->assertFalse($user->hasRole('seller'));
+    }
 }

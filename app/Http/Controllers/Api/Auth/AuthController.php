@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
@@ -105,6 +106,36 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Successfully logged out',
+        ]);
+    }
+
+    /**
+     * Update the authenticated user's role.
+     */
+    public function updateRole(Request $request): JsonResponse
+    {
+        $request->validate([
+            'role' => 'required|string|in:buyer,seller,admin',
+        ]);
+
+        $user = $request->user();
+        
+        // Only allow unverified users to update their role once
+        if (!$user->hasRole('unverified')) {
+            return response()->json([
+                'message' => 'You have already selected a role.',
+            ], 400);
+        }
+
+        // Remove unverified role and assign the new role
+        $user->removeRole('unverified');
+        $user->assignRole($request->role);
+
+        return response()->json([
+            'message' => 'Role updated successfully.',
+            'user' => array_merge($user->toArray(), [
+                'roles' => $user->getRoleNames(),
+            ]),
         ]);
     }
 
