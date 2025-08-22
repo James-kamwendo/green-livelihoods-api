@@ -448,14 +448,15 @@ class AuthTest extends TestCase
         $user = User::factory()->create([
             'email_verified_at' => now(),
         ]);
-        $user->assignRole('buyer');
+        // Make sure user only has the buyer role
+        $user->syncRoles(['buyer']);
         
         $token = $user->createToken('test-token')->plainTextToken;
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/auth/update-role', [
-            'role' => 'seller'
+            'role' => 'marketer'
         ]);
 
         $response->assertStatus(400)
@@ -463,7 +464,8 @@ class AuthTest extends TestCase
                 'message' => 'You have already selected a role.',
             ]);
 
+        $user->refresh();
         $this->assertTrue($user->hasRole('buyer'));
-        $this->assertFalse($user->hasRole('seller'));
+        $this->assertFalse($user->hasRole('marketer'));
     }
 }

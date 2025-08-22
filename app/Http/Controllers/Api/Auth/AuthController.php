@@ -115,7 +115,7 @@ class AuthController extends Controller
     public function updateRole(Request $request): JsonResponse
     {
         $request->validate([
-            'role' => 'required|string|in:buyer,seller,admin',
+            'role' => 'required|string|in:buyer,artisan,marketer,admin',
         ]);
 
         $user = $request->user();
