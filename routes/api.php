@@ -40,6 +40,17 @@ Route::prefix('auth')->group(function () {
         Route::post('/resend-otp', [PhoneVerificationController::class, 'resendOtp']);
     });
     
+        // Social authentication routes
+    Route::prefix('google')->group(function () {
+        Route::get('/redirect', [\App\Http\Controllers\Auth\SocialAuthController::class, 'redirectToGoogle']);
+        Route::get('/callback', [\App\Http\Controllers\Auth\SocialAuthController::class, 'handleGoogleCallback']);
+    });
+    
+    // Profile completion route (protected)
+    Route::middleware('auth:sanctum')->post('/complete-profile', 
+        [\App\Http\Controllers\Auth\SocialAuthController::class, 'completeProfile']
+    );
+    
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

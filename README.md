@@ -12,6 +12,7 @@ This API provides user authentication with email/phone verification and role-bas
 ## Table of Contents
 
 - [Authentication](#authentication)
+  - [Google OAuth](#google-oauth)
   - [Register](#register)
   - [Login](#login)
   - [Email Verification](#email-verification)
@@ -22,6 +23,154 @@ This API provides user authentication with email/phone verification and role-bas
   - [Error Responses](#error-responses)
 
 ## Authentication
+
+### Google OAuth
+
+The API supports Google OAuth for authentication with profile completion. Here's how it works:
+
+1. **Redirect to Google OAuth**
+
+   ```http
+   GET /api/auth/google/redirect
+   ```
+
+   This will redirect the user to Google's OAuth consent screen.
+
+2. **Handle OAuth Callback**
+
+   After successful authentication, Google will redirect to:
+
+   ```http
+   GET /api/auth/google/callback
+   ```
+
+   **Response for New User (requires profile completion):**
+   ```json
+   {
+     "user": {
+       "id": 1,
+       "name": "John Doe",
+       "email": "john@example.com",
+       "email_verified_at": "2023-01-01T00:00:00.000000Z",
+       "provider": "google",
+       "provider_id": "123456789",
+       "created_at": "2023-01-01T00:00:00.000000Z",
+       "updated_at": "2023-01-01T00:00:00.000000Z"
+     },
+     "access_token": "1|abcdefghijklmnopqrstuvwxyz",
+     "token_type": "Bearer",
+     "requires_profile_update": true,
+     "available_roles": [
+       {
+         "id": 1,
+         "name": "buyer",
+         "guard_name": "web"
+       },
+       {
+         "id": 2,
+         "name": "artisan",
+         "guard_name": "web"
+       },
+       {
+         "id": 3,
+         "name": "marketer",
+         "guard_name": "web"
+       }
+     ]
+   }
+   ```
+
+   **Response for Existing User (profile complete):**
+   ```json
+   {
+     "user": {
+       "id": 1,
+       "name": "John Doe",
+       "email": "john@example.com",
+       "email_verified_at": "2023-01-01T00:00:00.000000Z",
+       "provider": "google",
+       "provider_id": "123456789",
+       "age": 25,
+       "gender": "male",
+       "location": "Nairobi, Kenya",
+       "phone_number": "+254712345678",
+       "created_at": "2023-01-01T00:00:00.000000Z",
+       "updated_at": "2023-01-01T00:00:00.000000Z",
+       "roles": [
+         {
+           "id": 1,
+           "name": "buyer",
+           "guard_name": "web"
+         }
+       ]
+     },
+     "access_token": "1|abcdefghijklmnopqrstuvwxyz",
+     "token_type": "Bearer",
+     "requires_profile_update": false
+   }
+   ```
+
+3. **Complete Profile (if required)**
+
+   If `requires_profile_update` is `true`, the frontend should collect additional user information:
+
+   ```http
+   POST /api/auth/complete-profile
+   ```
+
+   **Headers:**
+   ```
+   Authorization: Bearer your-access-token
+   Accept: application/json
+   Content-Type: application/json
+   ```
+
+   **Request Body:**
+   ```json
+   {
+     "role": "buyer",
+     "age": 25,
+     "gender": "male",
+     "location": "Nairobi, Kenya",
+     "phone_number": "+254712345678"
+   }
+   ```
+
+   **Successful Response (200 OK):**
+   ```json
+   {
+     "message": "Profile completed successfully",
+     "user": {
+       "id": 1,
+       "name": "John Doe",
+       "email": "john@example.com",
+       "age": 25,
+       "gender": "male",
+       "location": "Nairobi, Kenya",
+       "phone_number": "+254712345678",
+       "roles": [
+         {
+           "id": 1,
+           "name": "buyer",
+           "guard_name": "web"
+         }
+       ]
+     }
+   }
+   ```
+
+   **Error Response (422 Unprocessable Entity) - Validation Error:**
+   ```json
+   {
+     "message": "The given data was invalid.",
+     "errors": {
+       "role": ["The selected role is invalid."],
+       "age": ["The age field is required."],
+       "gender": ["The selected gender is invalid."],
+       "location": ["The location field is required."]
+     }
+   }
+   ```
 
 ### Register
 
